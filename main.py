@@ -3,9 +3,6 @@ from loguru import logger
 import os
 import easygui
 
-
-
-
 # 获取脚本所在目录
 script_dir = os.path.dirname(os.path.abspath(__file__))
 logger.info(f"脚本所在目录: {script_dir}")
@@ -31,44 +28,32 @@ try:
     logger.info(df.head())
     
     while True:
-        # 使用enterbox()函数创建输入框，并将结果保存到name变量，同时增加下拉菜单，用于选择对应灵玦类型，菜单数据来自columns列表的偶数位
-        choices = [columns[i] for i in range(0, len(columns), 2)]
-        selected_type = easygui.choicebox(msg="请选择灵玦类型", title="选择类型", choices=choices)
+        # 使用enterbox()函数创建输入框，让用户直接输入灵玦名称
+        name = easygui.enterbox(msg="请输入灵玦名称，1级请在名称后加数字1，例如：引雷·青2", title="输入灵玦名称")
         
-        if selected_type:
-            # 使用enterbox()函数创建输入框，让用户输入具体的灵玦名称
-            name = easygui.enterbox(msg=f"请输入{selected_type}类型的灵玦名称，1级请在名称后加数字1，例如：引雷·青2", title="输入灵玦名称")
-            
-            # 检查用户是否输入了内容
-            if name:
-                if name in df[selected_type].values:
-                    index = df[df[selected_type] == name].index[0]
-                    exist_value = df.iloc[index, df.columns.get_loc(selected_type) + 1]
-                    if exist_value == "✓":
-                        easygui.msgbox(msg=f"{name} 已收集", title="提示")
-                        continue
-                    else:
-                        if easygui.ynbox(msg=f"是否收集 {name}?", title="提示"):
-                            df.iloc[index, df.columns.get_loc(selected_type) + 1] = "✓"
-                            logger.info(f"{name} 已标记为收集")
-                            # 更新到Excel文件中
-                            with pd.ExcelWriter(file_path, mode='a', if_sheet_exists='replace') as writer:
-                                df.to_excel(writer, sheet_name='Sheet1', index=False)
-                        continue
+        # 检查用户是否输入了内容
+        if name:
+            # 在整个DataFrame中查找匹配的灵玦名称
+            mask = df.applymap(lambda x: x == name if isinstance(x, str) else False)
+            if mask.any().any():
+                row_index, col_index = mask.values.nonzero()
+                row_index, col_index = row_index[0], col_index[0]
+                exist_value = df.iloc[row_index, col_index + 1]
+                if exist_value == "✓":
+                    easygui.msgbox(msg=f"{name} 已收集", title="提示")
                 else:
-                    easygui.msgbox(msg=f"在{selected_type}中未找到 {name}", title="提示")
-                    continue
+                    if easygui.ynbox(msg=f"是否收集 {name}?", title="提示"):
+                        df.iloc[row_index, col_index + 1] = "✓"
+                        logger.info(f"{name} 已标记为收集")
+                        # 更新到Excel文件中
+                        with pd.ExcelWriter(file_path, mode='a', if_sheet_exists='replace') as writer:
+                            df.to_excel(writer, sheet_name='Sheet1', index=False)
+                        logger.info("\n处理后的数据已保存到 '永劫无间-征神之路-灵玦图鉴-收集情况.xlsx'")
             else:
-                logger.error("输入内容为空!")
-                break
+                easygui.msgbox(msg=f"未找到 {name}，请确认输入是否正确！", title="提示")
         else:
+            logger.info("用户取消输入，程序退出")
             break
 
-    # 步骤3: (您的处理逻辑)
-
-    # 步骤5: 将处理后的数据保存到新的Excel文件
-    # (您的保存逻辑)
-
-    logger.info("\n处理后的数据已保存到 'output.xlsx'")
 except Exception as e:
     logger.error(f"处理Excel文件时发生错误: {str(e)}")
